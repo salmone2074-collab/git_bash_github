@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#05061a">
+<title>불꽃놀이</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  body {
+    background: radial-gradient(ellipse at 50% 120%, #1b1f4a 0%, #0a0c26 45%, #03030c 100%);
+    font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    color: #fff;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  header {
+    position: fixed;
+    top: max(24px, env(safe-area-inset-top));
+    left: 0; right: 0;
+    padding: 0 16px;
+    text-align: center;
+    pointer-events: none;
+    z-index: 2;
+  }
+  h1 {
+    font-size: clamp(2rem, 9vw, 4.5rem);
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    background: linear-gradient(90deg, #ffd36e, #ff6fa8, #8fb8ff, #7dffc4);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 12px rgba(255, 180, 220, 0.45));
+  }
+  .hint {
+    margin-top: 0.6em;
+    font-size: clamp(0.9rem, 3.8vw, 1.15rem);
+    opacity: 0.75;
+    transition: opacity 1s;
+  }
+  .hint.hide { opacity: 0; }
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<canvas id="fx"></canvas>
+<header>
+  <h1>불꽃놀이</h1>
+  <p class="hint" id="hint">화면 아무 곳이나 눌러 보세요</p>
+</header>
+
+<script>
+(() => {
+  const sky = document.getElementById('sky');
+  const fx = document.getElementById('fx');
+  const sctx = sky.getContext('2d');
+  const ctx = fx.getContext('2d');
+  const hint = document.getElementById('hint');
+
+  let W = 0, H = 0, dpr = 1;
+  let stars = [];
+  const particles = [];
+  const flashes = [];
+  const MAX_PARTICLES = 2500;
+  const rand = (a, b) => a + Math.random() * (b - a);
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    for (const c of [sky, fx]) {
+      c.width = W * dpr;
+      c.height = H * dpr;
+    }
+    sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    makeStars();
+  }
+
+  function makeStars() {
+    const count = Math.round((W * H) / 2500);
+    stars = Array.from({ length: count }, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H * 0.9,
+      r: Math.random() * 1.2 + 0.2,
+      a: Math.random() * Math.PI,
+      s: Math.random() * 0.02 + 0.005
+    }));
+  }
+
+  function drawStars(dt) {
+    sctx.clearRect(0, 0, W, H);
+    for (const st of stars) {
+      st.a += st.s * dt;
+      const alpha = 0.3 + 0.6 * Math.abs(Math.sin(st.a));
+      sctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      sctx.beginPath();
+      sctx.arc(st.x, st.y, st.r, 0, Math.PI * 2);
+      sctx.fill();
+    }
+  }
+
+  function addParticle(x, y, angle, v, hue, scale) {
+    particles.push({
+      x, y, px: x, py: y,
+      vx: Math.cos(angle) * v,
+      vy: Math.sin(angle) * v,
+      life: 1,
+      decay: rand(0.010, 0.018),
+      hue,
+      light: rand(55, 72),
+      size: rand(1.4, 2.6) * Math.min(scale, 1.4),
+      sparkle: Math.random() < 0.3
+    });
+  }
+
+  // type 0: 구형 + 보색 중심, type 1: 고리, type 2: 무지개
+  function explode(x, y) {
+    const scale = Math.min(W, H) / 700 + 0.4;
+    const type = Math.floor(Math.random() * 3);
+    const baseHue = Math.random() * 360;
+    const count = Math.round(rand(90, 140));
+    const speed = rand(4, 7) * scale;
+
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 + rand(-0.05, 0.05);
+      const v = type === 1 ? speed * rand(0.92, 1) : speed * Math.sqrt(Math.random());
+      const hue = type === 2 ? Math.random() * 360 : baseHue + rand(-25, 25);
+      addParticle(x, y, angle, v, hue, scale);
+    }
+
+    if (type !== 2) {
+      const coreHue = (baseHue + 180) % 360;
+      for (let i = 0; i < 40; i++) {
+        addParticle(x, y, rand(0, Math.PI * 2), speed * 0.45 * Math.sqrt(Math.random()), coreHue, scale);
+      }
+    }
+
+    flashes.push({ x, y, r: 60 * scale, life: 1 });
+
+    if (particles.length > MAX_PARTICLES) {
+      particles.splice(0, particles.length - MAX_PARTICLES);
+    }
+  }
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min((now - last) / 16.67, 3);
+    last = now;
+
+    drawStars(dt);
+
+    // 이전 프레임을 서서히 지워 꼬리 효과를 만든다
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = `rgba(0,0,0,${Math.min(0.22 * dt, 1)})`;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'lighter';
+
+    for (let i = flashes.length - 1; i >= 0; i--) {
+      const f = flashes[i];
+      const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r);
+      g.addColorStop(0, `rgba(255,240,220,${0.5 * f.life})`);
+      g.addColorStop(1, 'rgba(255,240,220,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+      ctx.fill();
+      f.life -= 0.08 * dt;
+      if (f.life <= 0) flashes.splice(i, 1);
+    }
+
+    ctx.lineCap = 'round';
+    const drag = Math.pow(0.965, dt);
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.px = p.x;
+      p.py = p.y;
+      p.vx *= drag;
+      p.vy = p.vy * drag + 0.06 * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.life -= p.decay * dt;
+
+      if (p.life <= 0) {
+        particles[i] = particles[particles.length - 1];
+        particles.pop();
+        continue;
+      }
+
+      let alpha = p.life;
+      if (p.sparkle && Math.random() < 0.5) alpha *= 0.3;
+      ctx.strokeStyle = `hsla(${p.hue},100%,${p.light}%,${alpha})`;
+      ctx.lineWidth = p.size;
+      ctx.beginPath();
+      ctx.moveTo(p.px, p.py);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  window.addEventListener('pointerdown', (e) => {
+    explode(e.clientX, e.clientY);
+    hint.classList.add('hide');
+  });
+  window.addEventListener('contextmenu', (e) => e.preventDefault());
+  window.addEventListener('resize', resize);
+
+  resize();
+  requestAnimationFrame(frame);
+  setTimeout(() => explode(W / 2, H * 0.4), 400);
+})();
+</script>
+</body>
+</html>
