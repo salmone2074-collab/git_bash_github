@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>로또 번호 뽑기</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #202a32;
+      --muted: #59656d;
+      --paper: #fffdf8;
+      --green: #176b4a;
+      --green-dark: #10553a;
+      --line: #d9e1dc;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 32px 18px;
+      display: grid;
+      place-items: center;
+      color: var(--ink);
+      background-color: #edf3ee;
+      background-image: radial-gradient(#cbd9ce 1px, transparent 1px);
+      background-size: 22px 22px;
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    }
+
+    main {
+      width: min(100%, 760px);
+      padding: 38px 28px;
+      text-align: center;
+      background: var(--paper);
+      border: 2px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 12px 35px rgb(34 58 43 / 10%);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 2.25rem;
+      line-height: 1.25;
+    }
+
+    .description {
+      margin: 14px 0 32px;
+      color: var(--muted);
+      font-size: 1.2rem;
+      line-height: 1.6;
+    }
+
+    .numbers {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 14px;
+      justify-items: center;
+      margin: 0 auto 30px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .ball {
+      width: min(100%, 92px);
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border: 3px solid rgb(0 0 0 / 8%);
+      border-radius: 50%;
+      color: #202a32;
+      font-size: 2rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      box-shadow: inset 0 -5px 0 rgb(0 0 0 / 8%), 0 4px 8px rgb(0 0 0 / 10%);
+    }
+
+    .ball:nth-child(1) { background: #ffd85b; }
+    .ball:nth-child(2) { background: #91c8ff; }
+    .ball:nth-child(3) { background: #ff9a83; }
+    .ball:nth-child(4) { background: #c5b0ef; }
+    .ball:nth-child(5) { background: #a9d77c; }
+    .ball:nth-child(6) { background: #ffb6d2; }
+
+    .ball.rolling {
+      animation: bounce 180ms ease-in-out infinite alternate;
+    }
+
+    @keyframes bounce {
+      from { transform: translateY(0) scale(1); }
+      to { transform: translateY(-5px) scale(1.05); }
+    }
+
+    .status {
+      min-height: 1.8em;
+      margin: 0 0 20px;
+      color: var(--muted);
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 14px;
+    }
+
+    button {
+      min-height: 68px;
+      padding: 14px 30px;
+      border: 3px solid transparent;
+      border-radius: 10px;
+      font: inherit;
+      font-size: 1.4rem;
+      font-weight: 800;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    button:focus-visible {
+      outline: 4px solid #e6a700;
+      outline-offset: 4px;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    .draw-button {
+      color: #fff;
+      background: var(--green);
+    }
+
+    .draw-button:not(:disabled):hover {
+      background: var(--green-dark);
+    }
+
+    .again-button {
+      color: var(--green-dark);
+      background: #fff;
+      border-color: var(--green);
+    }
+
+    .again-button:not(:disabled):hover {
+      background: #eef7f1;
+    }
+
+    @media (max-width: 600px) {
+      main {
+        padding: 30px 16px;
+      }
+
+      h1 {
+        font-size: 1.9rem;
+      }
+
+      .description {
+        margin-bottom: 26px;
+      }
+
+      .numbers {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        max-width: 340px;
+      }
+
+      .ball {
+        width: 82px;
+        font-size: 1.9rem;
+      }
+
+      .buttons {
+        flex-direction: column;
+      }
+
+      button {
+        width: 100%;
+        min-height: 70px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>로또 번호 뽑기</h1>
+    <p class="description">1부터 45까지, 겹치지 않는 번호 6개</p>
+
+    <ol class="numbers" aria-label="뽑힌 로또 번호">
+      <li class="ball">?</li>
+      <li class="ball">?</li>
+      <li class="ball">?</li>
+      <li class="ball">?</li>
+      <li class="ball">?</li>
+      <li class="ball">?</li>
+    </ol>
+
+    <p class="status" id="status" role="status" aria-live="polite">버튼을 눌러 번호를 뽑아 보세요.</p>
+
+    <div class="buttons">
+      <button class="draw-button" id="drawButton" type="button">번호 뽑기</button>
+      <button class="again-button" id="againButton" type="button" disabled>다시 뽑기</button>
+    </div>
+  </main>
+
+  <script>
+    const balls = Array.from(document.querySelectorAll(".ball"));
+    const statusText = document.getElementById("status");
+    const drawButton = document.getElementById("drawButton");
+    const againButton = document.getElementById("againButton");
+    const delay = (milliseconds) =>
+      new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+    function pickNumbers() {
+      const numbers = Array.from({ length: 45 }, (_, index) => index + 1);
+
+      for (let index = numbers.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [numbers[index], numbers[swapIndex]] = [numbers[swapIndex], numbers[index]];
+      }
+
+      return numbers.slice(0, 6).sort((a, b) => a - b);
+    }
+
+    async function draw() {
+      drawButton.disabled = true;
+      againButton.disabled = true;
+      statusText.textContent = "번호를 뽑고 있어요.";
+
+      const chosenNumbers = pickNumbers();
+
+      await Promise.all(
+        balls.map(async (ball, index) => {
+          ball.classList.add("rolling");
+
+          const timer = setInterval(() => {
+            ball.textContent = String(Math.floor(Math.random() * 45) + 1);
+          }, 55);
+
+          await delay(800 + index * 120);
+          clearInterval(timer);
+          ball.textContent = String(chosenNumbers[index]);
+          ball.classList.remove("rolling");
+        })
+      );
+
+      statusText.textContent = `뽑힌 번호는 ${chosenNumbers.join(", ")}입니다.`;
+      drawButton.disabled = false;
+      againButton.disabled = false;
+    }
+
+    drawButton.addEventListener("click", draw);
+    againButton.addEventListener("click", draw);
+  </script>
+</body>
+</html>
